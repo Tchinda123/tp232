@@ -37,9 +37,9 @@ page = st.sidebar.radio("Navigation", [
     "Base de donnees",
     "1 - Regression Lineaire Simple",
     "2 - Regression Lineaire Multiple",
-    "3 - Reduction PCA",
-    "4 - Classification Supervisee",
-    "5 - Clustering KMeans"
+    "3 - Tecnique de Reduction des dimentionalites des donnees",
+    "4 - Technique de Classification Supervisee",
+    "5 - Technique de classification non-supervisee"
 ])
 
 st.sidebar.markdown("---")
