@@ -12,23 +12,23 @@ from sklearn.metrics import accuracy_score, confusion_matrix, r2_score, mean_squ
 import warnings
 warnings.filterwarnings('ignore')
 
-st.set_page_config(page_title="COLLDATA INF232 EC2", page_icon="hospital", layout="wide")
+st.set_page_config(page_title="AgroData INF232 EC2", page_icon="seedling", layout="wide")
 
-# ── SECTEUR : SANTE ──────────────────────────────────────────
-# Application axee sur les donnees de sante des patients
+# ── SECTEUR : AGRICULTURE ─────────────────────────────────────
+# Application axee sur les donnees agricoles des exploitants
 
-MALADIES = {'Diabete':1,'Hypertension':2,'Paludisme':3,'Tuberculose':4,'Anemie':5,'Autre':6}
-HOPITAUX = ['CHU Yaounde','Hopital Central','Laquintinie Douala','Hopital de District','Clinique Privee']
-COULEURS = ['#e74c3c','#3498db','#2ecc71','#f39c12','#9b59b6','#1abc9c']
+CULTURES = {'Mais':1,'Cacao':2,'Cafe':3,'Manioc':4,'Plantain':5,'Arachide':6}
+REGIONS = ['Centre','Littoral','Ouest','Sud','Nord','Est']
+COULEURS = ['#27ae60','#f39c12','#8b4513','#e74c3c','#f1c40f','#16a085']
 
 if 'db' not in st.session_state:
     st.session_state.db = pd.DataFrame(columns=[
-        'Patient','Age','Sexe','Hopital','Maladie','Maladie_num',
-        'Duree_Sejour','Cout_Traitement','Satisfaction','Ville'
+        'Exploitant','Age','Sexe','Region','Culture','Culture_num',
+        'Superficie','Production','Satisfaction','Ville'
     ])
 
-st.sidebar.title("MediData - Sante")
-st.sidebar.markdown("**INF 232 EC2** - Analyse de donnees medicales")
+st.sidebar.title("AgroData - Agriculture")
+st.sidebar.markdown("**INF 232 EC2** - Analyse de donnees agricoles")
 st.sidebar.markdown("---")
 
 page = st.sidebar.radio("Navigation", [
@@ -37,371 +37,358 @@ page = st.sidebar.radio("Navigation", [
     "Base de donnees",
     "1 - Regression Lineaire Simple",
     "2 - Regression Lineaire Multiple",
-    "3 - Tecnique de Reduction des dimentionalites des donnees",
-    "4 - Technique de Classification Supervisee",
-    "5 - Technique de classification non-supervisee"
+    "3 - Reduction PCA",
+    "4 - Classification Supervisee",
+    "5 - Clustering KMeans"
 ])
 
 st.sidebar.markdown("---")
-st.sidebar.markdown(f"**Patients enregistres :** {len(st.session_state.db)}")
+st.sidebar.markdown(f"**Exploitants enregistres :** {len(st.session_state.db)}")
 if len(st.session_state.db) >= 3:
     st.sidebar.success("Donnees suffisantes")
 else:
-    st.sidebar.warning(f"Minimum 3 patients requis ({len(st.session_state.db)}/3)")
+    st.sidebar.warning(f"Minimum 3 enregistrements requis ({len(st.session_state.db)}/3)")
 
 if st.sidebar.button("Charger donnees demo"):
-    noms = ['Patient_001','Patient_002','Patient_003','Patient_004','Patient_005',
-            'Patient_006','Patient_007','Patient_008','Patient_009','Patient_010',
-            'Patient_011','Patient_012','Patient_013','Patient_014','Patient_015',
-            'Patient_016','Patient_017','Patient_018','Patient_019','Patient_020']
-    mal_list = list(MALADIES.keys())
+    noms = ['Nkoa Jean','Fon Marie','Bello Ali','Manga Rose','Tabi Pierre',
+            'Ekedi Claire','Zanga Paul','Moto Lucie','Ndi Thomas','Baka Judith',
+            'Kana Eric','Toko Sara','Mbida Victor','Neba Alice','Foko Gaetan',
+            'Simo Rose','Abega Claude','Talla Herve','Kotto Estelle','Bissa Franck']
+    cult_list = list(CULTURES.keys())
     rows = []
-    np.random.seed(10)
+    np.random.seed(5)
     for i, nom in enumerate(noms):
-        duree = np.random.randint(1, 30)
-        mal_nom = mal_list[np.random.randint(0, 6)]
-        mal_num = MALADIES[mal_nom]
+        superficie = np.random.randint(1, 20)
+        cult_nom = cult_list[np.random.randint(0, 6)]
+        cult_num = CULTURES[cult_nom]
         rows.append({
-            'Patient': nom,
-            'Age': np.random.randint(18, 75),
+            'Exploitant': nom,
+            'Age': np.random.randint(20, 65),
             'Sexe': 'M' if i % 2 == 0 else 'F',
-            'Hopital': HOPITAUX[i % len(HOPITAUX)],
-            'Maladie': mal_nom,
-            'Maladie_num': mal_num,
-            'Duree_Sejour': duree,
-            'Cout_Traitement': int((20000 + duree*15000 + mal_num*10000 + np.random.randint(-10000,10000))/1000)*1000,
+            'Region': REGIONS[i % len(REGIONS)],
+            'Culture': cult_nom,
+            'Culture_num': cult_num,
+            'Superficie': superficie,
+            'Production': int((500 + superficie*300 + cult_num*100 + np.random.randint(-200,200))),
             'Satisfaction': np.random.randint(3, 11),
-            'Ville': ['Douala','Yaounde','Bafoussam','Garoua','Kribi'][i%5]
+            'Ville': ['Yaounde','Douala','Bafoussam','Ebolowa','Bertoua'][i%5]
         })
     st.session_state.db = pd.DataFrame(rows)
-    st.sidebar.success("20 patients demo charges!")
+    st.sidebar.success("20 exploitants demo charges!")
     st.rerun()
 
 
 def check_data(min_rows=5):
     if len(st.session_state.db) < min_rows:
-        st.warning(f"Minimum {min_rows} patients requis. Vous avez {len(st.session_state.db)}.")
+        st.warning(f"Minimum {min_rows} enregistrements requis. Vous avez {len(st.session_state.db)}.")
         st.info("Allez dans Collecte de donnees ou chargez les donnees demo.")
         return False
     return True
 
 
 if page == "Accueil":
-    st.title("MediData - INF 232 EC2")
-    st.markdown("### Application de Collecte et Analyse des Donnees de Sante")
+    st.title("AgroData - INF 232 EC2")
+    st.markdown("### Application de Collecte et Analyse des Donnees Agricoles")
     st.markdown("---")
     df = st.session_state.db
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Patients enregistres", len(df))
+    col1.metric("Exploitants enregistres", len(df))
     col2.metric("Age moyen", f"{df['Age'].mean():.0f} ans" if len(df) else "---")
-    col3.metric("Cout moyen", f"{df['Cout_Traitement'].mean()/1000:.0f}k FCFA" if len(df) else "---")
+    col3.metric("Production moyenne", f"{df['Production'].mean():.0f} kg" if len(df) else "---")
     col4.metric("Satisfaction", f"{df['Satisfaction'].mean():.1f}/10" if len(df) else "---")
     st.markdown("---")
-    st.markdown("## Programme EC2 - Secteur Sante")
+    st.markdown("## Programme EC2 - Secteur Agriculture")
     col1, col2 = st.columns(2)
     with col1:
-        st.info("**Collecte** : Donnees patients (age, maladie, duree sejour, cout, satisfaction)")
-        st.success("**1 - Regression Simple** : Duree sejour -> Cout traitement")
-        st.success("**2 - Regression Multiple** : Age + Duree + Maladie -> Cout")
+        st.info("**Collecte** : Donnees exploitants (age, culture, superficie, production, satisfaction)")
+        st.success("**1 - Regression Simple** : Superficie -> Production agricole")
+        st.success("**2 - Regression Multiple** : Age + Superficie + Culture -> Production")
     with col2:
-        st.warning("**3 - PCA** : Compression des variables medicales")
-        st.warning("**4 - KNN** : Predire le type de maladie")
-        st.error("**5 - KMeans** : Segmenter les patients par profil")
+        st.warning("**3 - PCA** : Compression des variables agricoles")
+        st.warning("**4 - KNN** : Predire le type de culture")
+        st.error("**5 - KMeans** : Segmenter les exploitants par profil")
     st.markdown("---")
     st.markdown("Utilisez le menu a gauche. Cliquez **Charger donnees demo** pour commencer.")
 
 
 elif page == "Collecte de donnees":
-    st.title("Formulaire Patient - Sante")
+    st.title("Formulaire Exploitant Agricole")
     st.markdown("---")
-    with st.form("form_sante", clear_on_submit=True):
+    with st.form("form_agro", clear_on_submit=True):
         col1, col2 = st.columns(2)
         with col1:
-            patient = st.text_input("Identifiant patient", placeholder="Ex : Patient_021")
-            age = st.number_input("Age du patient", min_value=0, max_value=110, value=35)
+            exploitant = st.text_input("Nom de l'exploitant", placeholder="Ex : Nkoa Jean")
+            age = st.number_input("Age", min_value=15, max_value=80, value=35)
             sexe = st.selectbox("Sexe", ["Masculin","Feminin"])
-            hopital = st.selectbox("Hopital / Structure", HOPITAUX)
+            region = st.selectbox("Region", REGIONS)
         with col2:
-            maladie = st.selectbox("Maladie diagnostiquee", list(MALADIES.keys()))
-            duree = st.number_input("Duree du sejour (jours)", min_value=1, max_value=365, value=5)
-            cout = st.number_input("Cout du traitement (FCFA)", min_value=0, max_value=5000000, value=50000, step=5000)
-            ville = st.text_input("Ville", placeholder="Ex : Yaounde")
-        satisfaction = st.slider("Satisfaction du patient (1 a 10)", 1, 10, 7)
-        submitted = st.form_submit_button("Enregistrer le patient", use_container_width=True)
+            culture = st.selectbox("Type de culture", list(CULTURES.keys()))
+            superficie = st.number_input("Superficie (hectares)", min_value=0.5, max_value=100.0, value=2.0, step=0.5)
+            production = st.number_input("Production (kg)", min_value=0, max_value=100000, value=1000, step=100)
+            ville = st.text_input("Ville / Village", placeholder="Ex : Bafia")
+        satisfaction = st.slider("Satisfaction de l'exploitant (1 a 10)", 1, 10, 6)
+        submitted = st.form_submit_button("Enregistrer l'exploitant", use_container_width=True)
         if submitted:
-            if not patient.strip():
-                st.error("Veuillez saisir un identifiant patient.")
+            if not exploitant.strip():
+                st.error("Veuillez saisir un nom.")
             else:
                 new_row = pd.DataFrame([{
-                    'Patient': patient.strip(), 'Age': age, 'Sexe': sexe,
-                    'Hopital': hopital, 'Maladie': maladie, 'Maladie_num': MALADIES[maladie],
-                    'Duree_Sejour': duree, 'Cout_Traitement': cout,
+                    'Exploitant': exploitant.strip(), 'Age': age, 'Sexe': sexe,
+                    'Region': region, 'Culture': culture, 'Culture_num': CULTURES[culture],
+                    'Superficie': superficie, 'Production': production,
                     'Satisfaction': satisfaction, 'Ville': ville
                 }])
                 st.session_state.db = pd.concat([st.session_state.db, new_row], ignore_index=True)
-                st.success(f"Patient {patient} enregistre ! Total : {len(st.session_state.db)}")
+                st.success(f"Exploitant {exploitant} enregistre ! Total : {len(st.session_state.db)}")
 
 
 elif page == "Base de donnees":
-    st.title("Base de Donnees - Patients")
+    st.title("Base de Donnees - Exploitants Agricoles")
     df = st.session_state.db
     col1, col2, col3 = st.columns(3)
-    col1.metric("Total patients", len(df))
+    col1.metric("Total exploitants", len(df))
     with col2:
         if len(df):
             csv = df.to_csv(index=False).encode('utf-8')
-            st.download_button("Telecharger CSV", csv, "medidata_export.csv", "text/csv")
+            st.download_button("Telecharger CSV", csv, "agrodata_export.csv", "text/csv")
     with col3:
         if st.button("Vider les donnees"):
             st.session_state.db = pd.DataFrame(columns=df.columns)
             st.rerun()
     st.markdown("---")
     if df.empty:
-        st.warning("Aucun patient. Allez dans Collecte de donnees.")
+        st.warning("Aucun exploitant. Allez dans Collecte de donnees.")
     else:
         st.dataframe(df, use_container_width=True)
         st.markdown("### Statistiques descriptives")
-        st.dataframe(df[['Age','Duree_Sejour','Cout_Traitement','Satisfaction']].describe().round(2), use_container_width=True)
+        st.dataframe(df[['Age','Superficie','Production','Satisfaction']].describe().round(2), use_container_width=True)
         st.markdown("### Distributions")
         fig, axes = plt.subplots(2, 2, figsize=(12, 8))
-        axes[0,0].hist(df['Age'], bins=10, color='#e74c3c', edgecolor='white')
+        axes[0,0].hist(df['Age'], bins=10, color='#27ae60', edgecolor='white')
         axes[0,0].set_title('Distribution des Ages')
-        axes[0,1].hist(df['Cout_Traitement'], bins=10, color='#3498db', edgecolor='white')
-        axes[0,1].set_title('Cout du Traitement')
-        mc = df['Maladie'].value_counts()
-        axes[1,0].bar(mc.index, mc.values, color=COULEURS[:len(mc)], edgecolor='white')
-        axes[1,0].set_title('Repartition par Maladie')
+        axes[0,1].hist(df['Production'], bins=10, color='#f39c12', edgecolor='white')
+        axes[0,1].set_title('Production (kg)')
+        cc = df['Culture'].value_counts()
+        axes[1,0].bar(cc.index, cc.values, color=COULEURS[:len(cc)], edgecolor='white')
+        axes[1,0].set_title('Repartition par Culture')
         axes[1,0].tick_params(axis='x', rotation=30)
-        hc = df['Hopital'].value_counts()
-        axes[1,1].pie(hc.values, labels=hc.index, colors=COULEURS[:len(hc)], autopct='%1.0f%%')
-        axes[1,1].set_title('Repartition par Hopital')
+        rc = df['Region'].value_counts()
+        axes[1,1].pie(rc.values, labels=rc.index, colors=COULEURS[:len(rc)], autopct='%1.0f%%')
+        axes[1,1].set_title('Repartition par Region')
         plt.tight_layout()
         st.pyplot(fig); plt.close()
 
 
 elif page == "1 - Regression Lineaire Simple":
     st.title("1 - Regression Lineaire Simple")
-    st.markdown("**Objectif :** Relation entre **Duree du sejour (X)** et **Cout du traitement (Y)**.")
-    st.markdown("**Equation :** Cout = a x Duree + b")
+    st.markdown("**Objectif :** Relation entre **Superficie (X)** et **Production (Y)**.")
+    st.markdown("**Equation :** Production = a x Superficie + b")
     st.markdown("---")
     if not check_data(3): st.stop()
     df = st.session_state.db.copy()
-    X = df[['Duree_Sejour']].values
-    y = df['Cout_Traitement'].values
-    model = LinearRegression()
-    model.fit(X, y)
+    X = df[['Superficie']].values; y = df['Production'].values
+    model = LinearRegression(); model.fit(X, y)
     y_pred = model.predict(X)
-    r2 = r2_score(y, y_pred)
-    rmse = np.sqrt(mean_squared_error(y, y_pred))
+    r2 = r2_score(y, y_pred); rmse = np.sqrt(mean_squared_error(y, y_pred))
     a = model.coef_[0]; b = model.intercept_
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("R2", f"{r2:.4f}")
-    col2.metric("R Pearson", f"{r2**0.5:.4f}")
-    col3.metric("RMSE", f"{rmse/1000:.1f}k FCFA")
-    col4.metric("Patients", len(df))
+    col1.metric("R2", f"{r2:.4f}"); col2.metric("R Pearson", f"{r2**0.5:.4f}")
+    col3.metric("RMSE", f"{rmse:.1f} kg"); col4.metric("Exploitants", len(df))
     st.markdown("---")
-    st.info(f"Cout = {a:.0f} x Duree_Sejour + {b:.0f}")
-    st.markdown(f"- Chaque jour supplementaire coute en moyenne **+{a:.0f} FCFA**")
+    st.info(f"Production = {a:.0f} x Superficie + {b:.0f}")
+    st.markdown(f"- Chaque hectare supplementaire produit en moyenne **+{a:.0f} kg**")
     col1, col2 = st.columns(2)
     with col1:
-        fig, ax = plt.subplots(figsize=(7, 5))
-        ax.scatter(X, y, color='#e74c3c', edgecolors='black', s=70, label='Patients')
+        fig, ax = plt.subplots(figsize=(7,5))
+        ax.scatter(X, y, color='#27ae60', edgecolors='black', s=70, label='Exploitants')
         x_line = np.linspace(X.min(), X.max(), 100).reshape(-1,1)
-        ax.plot(x_line, model.predict(x_line), color='blue', linewidth=2.5, label=f'Droite')
-        ax.set_xlabel("Duree Sejour (jours)")
-        ax.set_ylabel("Cout Traitement (FCFA)")
+        ax.plot(x_line, model.predict(x_line), color='#e74c3c', linewidth=2.5, label='Droite')
+        ax.set_xlabel("Superficie (ha)"); ax.set_ylabel("Production (kg)")
         ax.set_title(f"Regression Simple (R2={r2:.3f})")
-        ax.legend(); ax.grid(True, alpha=0.3)
-        st.pyplot(fig); plt.close()
+        ax.legend(); ax.grid(True,alpha=0.3); st.pyplot(fig); plt.close()
     with col2:
-        fig, ax = plt.subplots(figsize=(7, 5))
-        ax.scatter(y, y_pred, color='#3498db', edgecolors='black', s=70)
-        lims = [y.min(), y.max()]
-        ax.plot(lims, lims, 'r--', linewidth=1.5, label='Parfait')
-        ax.set_xlabel("Reel (FCFA)"); ax.set_ylabel("Predit (FCFA)")
-        ax.set_title("Reel vs Predit"); ax.legend(); ax.grid(True, alpha=0.3)
-        st.pyplot(fig); plt.close()
+        fig, ax = plt.subplots(figsize=(7,5))
+        ax.scatter(y, y_pred, color='#f39c12', edgecolors='black', s=70)
+        lims = [y.min(), y.max()]; ax.plot(lims, lims, 'r--', linewidth=1.5)
+        ax.set_xlabel("Reel (kg)"); ax.set_ylabel("Predit (kg)"); ax.set_title("Reel vs Predit")
+        ax.grid(True,alpha=0.3); st.pyplot(fig); plt.close()
     st.markdown("---")
-    duree_val = st.slider("Duree du sejour (jours)", 1, 60, 10)
-    pred = model.predict([[duree_val]])[0]
-    st.success(f"Pour {duree_val} jours de sejour -> Cout predit : **{pred:,.0f} FCFA**")
+    sup_val = st.slider("Superficie (hectares)", 1, 50, 5)
+    pred = model.predict([[sup_val]])[0]
+    st.success(f"Pour {sup_val} hectares -> Production predite : **{pred:,.0f} kg**")
 
 
 elif page == "2 - Regression Lineaire Multiple":
     st.title("2 - Regression Lineaire Multiple")
-    st.markdown("**Objectif :** Predire le **Cout** avec Age + Duree + Maladie + Satisfaction.")
+    st.markdown("**Objectif :** Predire la **Production** avec Age + Superficie + Culture + Satisfaction.")
     st.markdown("---")
     if not check_data(5): st.stop()
     df = st.session_state.db.copy()
-    features = ['Age','Duree_Sejour','Maladie_num','Satisfaction']
-    labels_f = ['Age','Duree Sejour','Type Maladie','Satisfaction']
-    X = df[features].values; y = df['Cout_Traitement'].values
-    scaler = StandardScaler()
-    X_sc = scaler.fit_transform(X)
-    model = LinearRegression()
-    model.fit(X_sc, y)
+    features = ['Age','Superficie','Culture_num','Satisfaction']
+    labels_f = ['Age','Superficie','Type Culture','Satisfaction']
+    X = df[features].values; y = df['Production'].values
+    scaler = StandardScaler(); X_sc = scaler.fit_transform(X)
+    model = LinearRegression(); model.fit(X_sc, y)
     y_pred = model.predict(X_sc)
-    r2 = r2_score(y, y_pred)
-    rmse = np.sqrt(mean_squared_error(y, y_pred))
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("R2", f"{r2:.4f}"); col2.metric("R multiple", f"{max(0,r2)**0.5:.4f}")
-    col3.metric("RMSE", f"{rmse/1000:.1f}k FCFA"); col4.metric("Variables", 4)
+    r2 = r2_score(y, y_pred); rmse = np.sqrt(mean_squared_error(y, y_pred))
+    col1,col2,col3,col4 = st.columns(4)
+    col1.metric("R2",f"{r2:.4f}"); col2.metric("R multiple",f"{max(0,r2)**0.5:.4f}")
+    col3.metric("RMSE",f"{rmse:.1f} kg"); col4.metric("Variables",4)
     st.markdown("---")
     col1, col2 = st.columns(2)
     with col1:
-        coef_df = pd.DataFrame({'Variable': labels_f, 'Coefficient': [f"{c:+.0f}" for c in model.coef_],
-                                 'Effet': ['Positif' if c>0 else 'Negatif' for c in model.coef_]})
+        coef_df = pd.DataFrame({'Variable':labels_f,'Coefficient':[f"{c:+.0f}" for c in model.coef_],
+                                 'Effet':['Positif' if c>0 else 'Negatif' for c in model.coef_]})
         st.dataframe(coef_df, use_container_width=True, hide_index=True)
         corr = df[features].rename(columns=dict(zip(features,labels_f))).corr()
         fig, ax = plt.subplots(figsize=(5,4))
-        sns.heatmap(corr, annot=True, fmt='.2f', cmap='RdYlGn', ax=ax)
+        sns.heatmap(corr, annot=True, fmt='.2f', cmap='Greens', ax=ax)
         ax.set_title('Correlations'); st.pyplot(fig); plt.close()
     with col2:
         fig, ax = plt.subplots(figsize=(6,4))
-        colors = ['#e74c3c' if c>0 else '#3498db' for c in model.coef_]
+        colors = ['#27ae60' if c>0 else '#e74c3c' for c in model.coef_]
         ax.barh(labels_f, model.coef_, color=colors, edgecolor='white')
-        ax.set_title("Impact sur le Cout"); ax.axvline(0,color='black',linewidth=0.8)
+        ax.set_title("Impact sur la Production"); ax.axvline(0,color='black',linewidth=0.8)
         ax.grid(True,axis='x',alpha=0.3); st.pyplot(fig); plt.close()
         fig, ax = plt.subplots(figsize=(6,4))
-        ax.scatter(y, y_pred, color='#2ecc71', edgecolors='black', s=60)
-        lims = [y.min(), y.max()]
-        ax.plot(lims, lims, 'r--', linewidth=1.5)
-        ax.set_xlabel("Reel"); ax.set_ylabel("Predit"); ax.set_title(f"R2={r2:.3f}")
-        ax.grid(True, alpha=0.3); st.pyplot(fig); plt.close()
+        ax.scatter(y, y_pred, color='#27ae60', edgecolors='black', s=60)
+        lims=[y.min(),y.max()]; ax.plot(lims,lims,'r--',linewidth=1.5)
+        ax.set_xlabel("Reel (kg)"); ax.set_ylabel("Predit (kg)"); ax.set_title(f"R2={r2:.3f}")
+        ax.grid(True,alpha=0.3); st.pyplot(fig); plt.close()
 
 
-elif page == "3 -  Technique de Reduction des dimentionalites des donnees":
-    st.title("3 - Reduction de Dimensionnalite ")
-    st.markdown("**Objectif :** Compresser les variables medicales en 2D.")
+elif page == "3 - Reduction PCA":
+    st.title("3 - Reduction de Dimensionnalite (PCA)")
+    st.markdown("**Objectif :** Compresser les variables agricoles en 2D pour visualiser les structures.")
     st.markdown("---")
     if not check_data(5): st.stop()
     df = st.session_state.db.copy()
-    features = ['Age','Duree_Sejour','Maladie_num','Cout_Traitement','Satisfaction']
-    labels_f = ['Age','Duree','Maladie','Cout','Satisfaction']
+    features = ['Age','Superficie','Culture_num','Production','Satisfaction']
+    labels_f = ['Age','Superficie','Culture','Production','Satisfaction']
     X = df[features].values
     scaler = StandardScaler(); X_sc = scaler.fit_transform(X)
     pca_full = PCA(); pca_full.fit(X_sc)
     var_exp = pca_full.explained_variance_ratio_; var_cum = np.cumsum(var_exp)
     pca2 = PCA(n_components=2); X_pca = pca2.fit_transform(X_sc)
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Variance PC1", f"{var_exp[0]:.1%}"); col2.metric("Variance PC2", f"{var_exp[1]:.1%}")
-    col3.metric("Cumul PC1+PC2", f"{(var_exp[0]+var_exp[1]):.1%}"); col4.metric("Variables", 5)
+    col1,col2,col3,col4 = st.columns(4)
+    col1.metric("Variance PC1",f"{var_exp[0]:.1%}"); col2.metric("Variance PC2",f"{var_exp[1]:.1%}")
+    col3.metric("Cumul PC1+PC2",f"{(var_exp[0]+var_exp[1]):.1%}"); col4.metric("Variables",5)
     st.markdown("---")
     col1, col2 = st.columns(2)
     with col1:
         fig, ax = plt.subplots(figsize=(6,4))
-        ax.bar(range(1,len(var_exp)+1), var_exp*100, color='#e74c3c', edgecolor='white', label='Par composante')
-        ax.plot(range(1,len(var_exp)+1), var_cum*100, 'o-', color='#3498db', linewidth=2, label='Cumule')
-        ax.axhline(y=95, color='green', linestyle='--', label='95%')
+        ax.bar(range(1,len(var_exp)+1), var_exp*100, color='#27ae60', edgecolor='white', label='Par composante')
+        ax.plot(range(1,len(var_exp)+1), var_cum*100, 'o-', color='#f39c12', linewidth=2, label='Cumule')
+        ax.axhline(y=95, color='red', linestyle='--', label='95%')
         ax.set_xlabel("Composante"); ax.set_ylabel("Variance (%)"); ax.set_title("Scree Plot")
-        ax.legend(); ax.grid(True, alpha=0.3); st.pyplot(fig); plt.close()
-        st.dataframe(pd.DataFrame(pca2.components_.T, index=labels_f, columns=['PC1','PC2']).round(3), use_container_width=True)
+        ax.legend(); ax.grid(True,alpha=0.3); st.pyplot(fig); plt.close()
+        st.dataframe(pd.DataFrame(pca2.components_.T,index=labels_f,columns=['PC1','PC2']).round(3), use_container_width=True)
     with col2:
         fig, ax = plt.subplots(figsize=(6,5))
-        maladies = df['Maladie'].unique()
-        for i, mal in enumerate(maladies):
-            mask = df['Maladie'] == mal
+        regions = df['Region'].unique()
+        for i, reg in enumerate(regions):
+            mask = df['Region']==reg
             ax.scatter(X_pca[mask,0], X_pca[mask,1], color=COULEURS[i%len(COULEURS)],
-                       label=mal, edgecolors='black', s=70, alpha=0.9)
+                       label=reg, edgecolors='black', s=70, alpha=0.9)
         ax.set_xlabel(f"PC1 ({var_exp[0]:.1%})"); ax.set_ylabel(f"PC2 ({var_exp[1]:.1%})")
-        ax.set_title("PCA 2D (par Maladie)"); ax.legend(fontsize=7); ax.grid(True, alpha=0.3)
+        ax.set_title("PCA 2D (par Region)"); ax.legend(fontsize=7); ax.grid(True,alpha=0.3)
         st.pyplot(fig); plt.close()
 
 
-elif page == "4 - Technique de Classification Supervisee":
-    st.title("4 - Classification Supervisee ")
-    st.markdown("**Objectif :** Predire le **type de maladie** a partir de Age, Cout, Duree, Satisfaction.")
+elif page == "4 - Classification Supervisee":
+    st.title("4 - Classification Supervisee (KNN)")
+    st.markdown("**Objectif :** Predire le **type de culture** a partir de Age, Superficie, Production, Satisfaction.")
     st.markdown("---")
     if not check_data(6): st.stop()
     df = st.session_state.db.copy()
-    features = ['Age','Duree_Sejour','Cout_Traitement','Satisfaction']
-    X = df[features].values; y = df['Maladie_num'].values
+    features = ['Age','Superficie','Production','Satisfaction']
+    X = df[features].values; y = df['Culture_num'].values
     scaler = StandardScaler(); X_sc = scaler.fit_transform(X)
     k = min(5, len(df)-1)
     model_knn = KNeighborsClassifier(n_neighbors=k)
     model_knn.fit(X_sc, y); y_pred = model_knn.predict(X_sc)
     acc = accuracy_score(y, y_pred)
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Accuracy", f"{acc:.1%}"); col2.metric("K voisins", k)
-    col3.metric("Maladies", len(np.unique(y))); col4.metric("Variables", 4)
+    col1,col2,col3,col4 = st.columns(4)
+    col1.metric("Accuracy",f"{acc:.1%}"); col2.metric("K voisins",k)
+    col3.metric("Cultures",len(np.unique(y))); col4.metric("Variables",4)
     st.markdown("---")
-    inv_mal = {v: k for k, v in MALADIES.items()}
+    inv_cult = {v: k for k, v in CULTURES.items()}
     col1, col2 = st.columns(2)
     with col1:
         uniq = np.unique(y)
-        mal_names = [inv_mal.get(n, str(n)) for n in uniq]
-        prec = [np.mean(y_pred[np.where(y==niv)[0]]==niv) if len(np.where(y==niv)[0]) else 0 for niv in uniq]
+        cult_names = [inv_cult.get(n,str(n)) for n in uniq]
+        prec = [np.mean(y_pred[np.where(y==c)[0]]==c) if len(np.where(y==c)[0]) else 0 for c in uniq]
         fig, ax = plt.subplots(figsize=(6,4))
-        ax.bar(mal_names, [p*100 for p in prec], color=COULEURS[:len(uniq)], edgecolor='white')
-        ax.set_ylabel("Precision (%)"); ax.set_title("Precision par Maladie")
-        ax.tick_params(axis='x', rotation=20); ax.set_ylim(0,115); ax.grid(True, axis='y', alpha=0.3)
+        ax.bar(cult_names, [p*100 for p in prec], color=COULEURS[:len(uniq)], edgecolor='white')
+        ax.set_ylabel("Precision (%)"); ax.set_title("Precision par Culture")
+        ax.tick_params(axis='x',rotation=20); ax.set_ylim(0,115); ax.grid(True,axis='y',alpha=0.3)
         st.pyplot(fig); plt.close()
     with col2:
         cm = confusion_matrix(y, y_pred)
         fig, ax = plt.subplots(figsize=(6,5))
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Reds', ax=ax, xticklabels=mal_names, yticklabels=mal_names)
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Greens', ax=ax, xticklabels=cult_names, yticklabels=cult_names)
         ax.set_xlabel("Predit"); ax.set_ylabel("Reel"); ax.set_title("Matrice de Confusion")
-        ax.tick_params(axis='x', rotation=20); st.pyplot(fig); plt.close()
+        ax.tick_params(axis='x',rotation=20); st.pyplot(fig); plt.close()
         st.markdown(f"### Accuracy : **{acc:.1%}**"); st.progress(acc)
     st.markdown("---")
-    st.markdown("### Predire la maladie d'un nouveau patient")
+    st.markdown("### Predire la culture d'un nouvel exploitant")
     c1,c2,c3,c4 = st.columns(4)
-    pa=c1.number_input("Age",0,110,40,key='k_age')
-    pd_=c2.number_input("Duree sejour",1,365,7,key='k_dur')
-    pc=c3.number_input("Cout (FCFA)",0,2000000,80000,step=5000,key='k_cout')
-    ps=c4.slider("Satisfaction",1,10,6,key='k_sat')
-    if st.button("Predire la maladie"):
-        inp = scaler.transform([[pa,pd_,pc,ps]])
+    pa=c1.number_input("Age",15,80,35,key='k_age')
+    ps_=c2.number_input("Superficie (ha)",0.5,100.0,3.0,step=0.5,key='k_sup')
+    pp=c3.number_input("Production (kg)",0,100000,1500,step=100,key='k_prod')
+    psat=c4.slider("Satisfaction",1,10,6,key='k_sat')
+    if st.button("Predire la culture"):
+        inp = scaler.transform([[pa,ps_,pp,psat]])
         pred = model_knn.predict(inp)[0]
-        st.success(f"Maladie predite : **{inv_mal.get(pred,pred)}**")
+        st.success(f"Culture predite : **{inv_cult.get(pred,pred)}**")
 
 
-elif page == "5 - Technique de classification non-supervisee":
-    st.title("5 - Classification Non-Supervisee ")
-    st.markdown("**Objectif :** Segmenter les patients en groupes homogenes selon Cout et Duree.")
+elif page == "5 - Clustering KMeans":
+    st.title("5 - Classification Non-Supervisee (K-Means)")
+    st.markdown("**Objectif :** Segmenter les exploitants en groupes selon Superficie et Production.")
     st.markdown("---")
     if not check_data(5): st.stop()
     df = st.session_state.db.copy()
     K_max = min(6, len(df)-1)
-    K = st.slider("Nombre de clusters (K)", 2, K_max, min(3, K_max))
-    X = df[['Cout_Traitement','Duree_Sejour']].values
+    K = st.slider("Nombre de clusters (K)", 2, K_max, min(3,K_max))
+    X = df[['Superficie','Production']].values
     scaler = StandardScaler(); X_sc = scaler.fit_transform(X)
     km = KMeans(n_clusters=K, random_state=42, n_init=10)
     df['Cluster'] = km.fit_predict(X_sc)
     col1,col2,col3,col4 = st.columns(4)
     col1.metric("Clusters",K); col2.metric("Inertie",f"{km.inertia_:.1f}")
-    col3.metric("Patients",len(df)); col4.metric("Variables",2)
+    col3.metric("Exploitants",len(df)); col4.metric("Variables",2)
     st.markdown("---")
     col1, col2 = st.columns(2)
     with col1:
         fig, ax = plt.subplots(figsize=(6,5))
         for c in range(K):
             mask = df['Cluster']==c
-            ax.scatter(df.loc[mask,'Cout_Traitement'], df.loc[mask,'Duree_Sejour'],
+            ax.scatter(df.loc[mask,'Superficie'], df.loc[mask,'Production'],
                        color=COULEURS[c%len(COULEURS)], label=f'Groupe {c}', edgecolors='black', s=80)
         centers_orig = scaler.inverse_transform(km.cluster_centers_)
         ax.scatter(centers_orig[:,0], centers_orig[:,1], marker='X', s=200, c='black', zorder=5, label='Centres')
-        ax.set_xlabel("Cout Traitement (FCFA)"); ax.set_ylabel("Duree Sejour (jours)")
-        ax.set_title(f"K-Means Patients (K={K})"); ax.legend(fontsize=8); ax.grid(True,alpha=0.3)
+        ax.set_xlabel("Superficie (ha)"); ax.set_ylabel("Production (kg)")
+        ax.set_title(f"K-Means Exploitants (K={K})"); ax.legend(fontsize=8); ax.grid(True,alpha=0.3)
         st.pyplot(fig); plt.close()
-        profile = df.groupby('Cluster')[['Age','Duree_Sejour','Cout_Traitement','Satisfaction']].mean().round(1)
+        profile = df.groupby('Cluster')[['Age','Superficie','Production','Satisfaction']].mean().round(1)
         profile.index = [f"Groupe {i}" for i in profile.index]
         st.dataframe(profile, use_container_width=True)
     with col2:
-        ks = range(2, K_max+1)
+        ks = range(2,K_max+1)
         inertias = [KMeans(n_clusters=k,random_state=42,n_init=10).fit(X_sc).inertia_ for k in ks]
         fig, ax = plt.subplots(figsize=(6,4))
-        ax.plot(list(ks), inertias, 'o-', color='#e74c3c', linewidth=2.5, markersize=8)
-        ax.axvline(x=K, color='blue', linestyle='--', label=f'K={K}')
+        ax.plot(list(ks), inertias, 'o-', color='#27ae60', linewidth=2.5, markersize=8)
+        ax.axvline(x=K, color='red', linestyle='--', label=f'K={K}')
         ax.set_xlabel("K"); ax.set_ylabel("Inertie"); ax.set_title("Methode du Coude")
         ax.legend(); ax.grid(True,alpha=0.3); st.pyplot(fig); plt.close()
         sizes = df['Cluster'].value_counts().sort_index()
         fig, ax = plt.subplots(figsize=(6,4))
         ax.bar([f'Groupe {i}' for i in sizes.index], sizes.values,
                color=[COULEURS[i%len(COULEURS)] for i in sizes.index], edgecolor='white')
-        ax.set_ylabel("Nombre de patients"); ax.set_title("Effectif par Groupe")
+        ax.set_ylabel("Nombre d'exploitants"); ax.set_title("Effectif par Groupe")
         ax.grid(True,axis='y',alpha=0.3); st.pyplot(fig); plt.close()
     st.markdown("---")
     col1, col2 = st.columns(2)
-    col1.info("**Supervise (KNN)** : On connait la maladie -> On predit pour un nouveau patient")
-    col2.warning("**Non-Supervise (KMeans)** : On ne connait pas les groupes -> L'algorithme les trouve seul")
+    col1.info("**Supervise (KNN)** : On connait la culture -> On predit pour un nouvel exploitant")
+    col2.warning("**Non-Supervise (KMeans)** : L'algorithme regroupe seul les exploitants similaires")
