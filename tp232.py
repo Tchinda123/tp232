@@ -12,7 +12,7 @@ from sklearn.metrics import accuracy_score, confusion_matrix, r2_score, mean_squ
 import warnings
 warnings.filterwarnings('ignore')
 
-st.set_page_config(page_title="MediData INF232 EC2", page_icon="hospital", layout="wide")
+st.set_page_config(page_title="COLLDATA INF232 EC2", page_icon="hospital", layout="wide")
 
 # ── SECTEUR : SANTE ──────────────────────────────────────────
 # Application axee sur les donnees de sante des patients
