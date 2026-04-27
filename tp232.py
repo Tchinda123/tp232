@@ -270,8 +270,8 @@ elif page == "2 - Regression Lineaire Multiple":
         ax.grid(True, alpha=0.3); st.pyplot(fig); plt.close()
 
 
-elif page == "3 - Reduction PCA":
-    st.title("3 - Reduction de Dimensionnalite (PCA)")
+elif page == "3 -  Technique de Reduction des dimentionalites des donnees":
+    st.title("3 - Reduction de Dimensionnalite ")
     st.markdown("**Objectif :** Compresser les variables medicales en 2D.")
     st.markdown("---")
     if not check_data(5): st.stop()
@@ -308,8 +308,8 @@ elif page == "3 - Reduction PCA":
         st.pyplot(fig); plt.close()
 
 
-elif page == "4 - Classification Supervisee":
-    st.title("4 - Classification Supervisee (KNN)")
+elif page == "4 - Technique de Classification Supervisee":
+    st.title("4 - Classification Supervisee ")
     st.markdown("**Objectif :** Predire le **type de maladie** a partir de Age, Cout, Duree, Satisfaction.")
     st.markdown("---")
     if not check_data(6): st.stop()
@@ -356,8 +356,8 @@ elif page == "4 - Classification Supervisee":
         st.success(f"Maladie predite : **{inv_mal.get(pred,pred)}**")
 
 
-elif page == "5 - Clustering KMeans":
-    st.title("5 - Classification Non-Supervisee (K-Means)")
+elif page == "5 - Technique de classification non-supervisee":
+    st.title("5 - Classification Non-Supervisee ")
     st.markdown("**Objectif :** Segmenter les patients en groupes homogenes selon Cout et Duree.")
     st.markdown("---")
     if not check_data(5): st.stop()
